@@ -1,0 +1,11 @@
+projects/
+people.json
+demo-projects/
+demo-people.json
+tests/node_modules/
+.env
+.DS_Store
+.vercel/
+previous-version/
+Design direction/
+CLAUDE.md

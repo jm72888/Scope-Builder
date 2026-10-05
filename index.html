@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Scope builder</title>
+<meta name="description" content="Paste rough notes about a program, get a delivery health read and an organized dashboard.">
+<link rel="stylesheet" href="styles.css">
+</head>
+<!-- One DOM, two layouts. In state-prompt the rail is the centered column and
+     holds the input; in state-board it moves to the right and holds the notes
+     plus the box for adding more. data-page switches the main column. -->
+<body class="state-prompt" data-page="overview">
+
+<div class="grain" aria-hidden="true"></div>
+<canvas class="backdrop" id="backdrop" aria-hidden="true"></canvas>
+<button type="button" class="backdrop-toggle" id="backdrop-toggle" aria-pressed="false">Pause animation</button>
+
+<div class="shell">
+
+  <aside class="sidenav" id="sidenav">
+    <div class="brand" id="brand-home" role="link" tabindex="0" title="Back to the start page">
+      <span class="brand-mark" aria-hidden="true">S</span>
+      <span class="brand-text">Scope builder</span>
+    </div>
+
+    <div class="switcher" id="switcher">
+      <button type="button" class="switcher-btn" id="switcher-btn" aria-expanded="false" aria-controls="switcher-menu">
+        <span class="switcher-name" id="switcher-name">No project yet</span>
+        <span class="switcher-meta" id="switcher-meta">Paste notes to start</span>
+        <span class="switcher-caret" aria-hidden="true"></span>
+      </button>
+      <div class="switcher-menu" id="switcher-menu" hidden>
+        <p class="switcher-head">Saved projects</p>
+        <div id="project-list"></div>
+        <button type="button" class="switcher-new" id="new-project">New project</button>
+      </div>
+    </div>
+
+    <button type="button" class="link-btn" id="reset-all">Reset all</button>
+
+    <nav class="nav" aria-label="Pages">
+      <button type="button" class="nav-item" data-page="overview"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3.5" width="7" height="7" rx="2"/><rect x="13.5" y="3.5" width="7" height="7" rx="2"/><rect x="3.5" y="13.5" width="7" height="7" rx="2"/><rect x="13.5" y="13.5" width="7" height="7" rx="2"/></svg><span class="nav-label">Overview</span></button>
+      <button type="button" class="nav-item" data-page="content"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.2 20 7.6v8.8l-8 4.4-8-4.4V7.6z"/><path d="M4 7.6l8 4.4 8-4.4M12 12v8.8"/></svg><span class="nav-label">Development</span></button>
+      <button type="button" class="nav-item" data-page="communication"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4.5h14a1.5 1.5 0 0 1 1.5 1.5v9a1.5 1.5 0 0 1-1.5 1.5H10l-4.5 3.5V16.5H5A1.5 1.5 0 0 1 3.5 15V6A1.5 1.5 0 0 1 5 4.5z"/><path d="M8 9.5h8M8 12.5h5"/></svg><span class="nav-label">Communication</span></button>
+      <button type="button" class="nav-item" data-page="metrics"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20.5h16"/><rect x="5" y="12" width="3.2" height="6" rx="1"/><rect x="10.4" y="7" width="3.2" height="11" rx="1"/><rect x="15.8" y="3.5" width="3.2" height="14.5" rx="1"/></svg><span class="nav-label">Metrics</span></button>
+      <button type="button" class="nav-item" data-page="schedule"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/><circle cx="8.5" cy="14.5" r="1"/><circle cx="12" cy="14.5" r="1"/></svg><span class="nav-label">Timeline</span></button>
+    </nav>
+
+
+
+    <p class="conn" id="conn">
+      <span id="conn-model">Powered by Claude</span>
+      <span class="conn-sep">|</span>
+      <span class="conn-status">Status: <span id="conn-state">checking</span></span>
+      <span class="conn-dot" id="conn-dot"></span>
+    </p>
+  </aside>
+
+  <header class="appbar">
+    <div class="appbar-title">
+      <h1 id="program-name">Scope <em>builder</em></h1>
+      <p class="appbar-sub" id="appbar-sub">Paste rough notes, get an organized dashboard.</p>
+    </div>
+  </header>
+
+  <main class="board" id="board">
+
+    <!-- Persistent on every page: the project name, then four readings of the same instrument. -->
+    <section class="health-row" id="health-row" hidden aria-label="Delivery health">
+      <!-- Left tile: the project and its overall reading, as a gauge. -->
+      <div class="health-main">
+        <h2 class="project-title" id="project-title"></h2>
+        <div class="health-head">
+          <span class="health-title">Delivery health</span>
+        </div>
+        <div class="gauge" id="health-bar" role="progressbar"
+             aria-valuemin="0" aria-valuemax="100" aria-label="Delivery health percentage">
+          <svg class="gauge-svg" id="gauge-svg" viewBox="0 0 240 132" aria-hidden="true"></svg>
+          <div class="gauge-read">
+            <span class="health-score"><b id="score-big">0</b><span>%</span></span>
+          </div>
+        </div>
+        <div class="health-tags">
+          <span class="health-badge" id="health-badge"></span>
+          <span class="health-delta" id="health-delta" hidden></span>
+        </div>
+      </div>
+
+      <!-- Right tile: the sub scores that make it up, stacked. -->
+      <div class="health-side">
+        <div class="panel-head"><h2>Sub scores</h2>
+          <span class="why-wrap">
+            <button type="button" class="why-btn" id="why-btn" aria-expanded="false" aria-controls="why-pop">How this is scored</button>
+            <span class="why-pop" id="why-pop" role="note">
+              <b>It scores what is on the dashboard, live.</b> Every score is worked out in the app from the rows on each page, and moves the moment you change one. Claude writes the content; it does not set the numbers.
+              <b>Development, Communication and Metrics.</b> Progress counts for half: Completed and on-time In progress count fully, In progress past its date counts half, Not started a little, Blocked nothing. A quarter is the share of items with an owner, and a quarter the share with a target date.
+              <b>Dates count too.</b> Anything not started or blocked within 14 days of its target costs up to 8 points, more as the date nears. Anything not completed after its date costs 12. At most 30 points per area.
+              <b>The total.</b> A weighted average: Development &times;2, Communication &times;1.5, Metrics &times;1. The Timeline is a plan of milestones and is not scored. Hover a score to see what makes it up.
+              <b>Where it breaks.</b> It measures how organized the work is, not whether it is the right work. A plan with every box ticked can still be aimed at the wrong thing.
+            </span>
+          </span>
+        </div>
+        <p class="legacy-note" id="legacy-note" hidden>Scored on the previous method. Add any context and it will be re-scored on the current one.</p>
+        <div class="vars" id="health-vars"></div>
+      </div>
+
+      <!-- Right: what would move each score, from the latest review. -->
+      <div class="health-raise">
+        <div class="panel-head"><h2>Raise the score by</h2></div>
+        <div class="raise" id="raise"></div>
+      </div>
+    </section>
+
+    <!-- OVERVIEW: on the left the summary, the source notes and the box for
+         adding context; on the right risks, milestones and recent changes. -->
+    <div class="page" data-page="overview">
+      <div class="overview-cols">
+        <div class="ov-col ov-left">
+        <section class="card result" id="sec-overview" hidden>
+          <div class="panel-head">
+            <h2>Project summary</h2>
+            <button type="button" class="link-btn" id="copy-summary">Copy</button>
+          </div>
+          <p class="brief" id="summary"></p>
+        </section>
+        <div class="notes-slot" id="notes-slot"></div>
+        <section class="card add-card" id="add-card" hidden>
+          <div class="panel-head"><h2>Add more context</h2><button type="button" class="undo-btn" data-undo="add-notes" disabled aria-label="Undo">Undo</button></div>
+          <p class="hint">Describe any major changes to the project, deliverables, comms plans, timelines, stakeholders, or metrics. Scope Builder will review your notes and adjust your dashboard accordingly. You can always revert a scan to the prior state from Scan history.</p>
+          <textarea id="add-notes" rows="4" spellcheck="false" placeholder="Type what you know&hellip;"></textarea>
+          <div class="context-actions">
+            <button type="button" class="scan-btn" id="scan" disabled>Scan context and update dashboard</button>
+            <span class="status" id="add-status" role="status" aria-live="polite"></span>
+          </div>
+          <div class="scans" id="scans" hidden>
+            <p class="scans-head">Scan history</p>
+            <ul class="scans-list" id="scans-list"></ul>
+          </div>
+        </section>
+        </div>
+        <div class="ov-col ov-right">
+        <section class="card result" id="sec-risks" hidden>
+          <div class="panel-head"><h2>Top risks</h2></div>
+          <div id="risks"></div>
+        </section>
+        <section class="card result" id="sec-milestones" hidden>
+          <div class="panel-head">
+            <h2>Next milestones</h2>
+            <button type="button" class="link-btn" id="to-timeline">Full timeline</button>
+          </div>
+          <ol class="milestones" id="milestones"></ol>
+        </section>
+        <section class="card result" id="sec-activity" hidden>
+          <div class="panel-head"><h2>Recent changes</h2></div>
+          <ul class="activity" id="activity"></ul>
+        </section>
+        </div>
+      </div>
+    </div>
+
+    <!-- The four pages below match the four scores, in the same order. Each
+         starts with its open items. -->
+
+    <!-- PROGRAM/PRODUCT CONTENT -->
+    <div class="page" data-page="content">
+      <section class="card result dlv-card" id="sec-deliverables" hidden>
+        <div class="panel-head">
+          <h2>What&rsquo;s being built</h2>
+          <span class="head-actions"><span class="items-count" id="dlv-count"></span><button type="button" class="sort-btn" data-sort="deliverables" data-by="status" title="Put the rows in status order: Blocked, Not started, In progress, Completed">Sort by status</button><button type="button" class="sort-btn sort-date" data-sort="deliverables" data-by="date" title="Put the rows in target date order, soonest first; undated last">Sort by date</button><button type="button" class="undo-btn" data-undo="deliverables" disabled aria-label="Undo">Undo</button></span>
+        </div>
+        <p class="hint">Click a status to move it to the next one: Not started, Blocked, In progress, Completed, then round again.</p>
+        <div class="dlv-rows" id="dlv-grid"></div>
+      </section>
+
+      <section class="card result" id="sec-directory" hidden>
+        <div class="panel-head">
+          <h2>People</h2>
+          <span class="head-actions"><button type="button" class="link-btn" id="add-person">Add someone</button><button type="button" class="undo-btn" data-undo="people" disabled aria-label="Undo">Undo</button></span>
+        </div>
+        <p class="hint">The people open items can be assigned to. Shared across every project, and saved as soon as you change it.</p>
+        <div id="people-list"></div>
+      </section>
+    </div>
+
+    <!-- COMMUNICATION -->
+    <div class="page" data-page="communication">
+      <section class="card result dlv-card" id="sec-comm-board" hidden>
+        <div class="panel-head">
+          <h2>What has to go out</h2>
+          <span class="head-actions"><span class="items-count" id="comm-count"></span><button type="button" class="sort-btn" data-sort="comms" data-by="status" title="Put the rows in status order: Blocked, Not started, In progress, Completed">Sort by status</button><button type="button" class="sort-btn sort-date" data-sort="comms" data-by="date" title="Put the rows in target date order, soonest first; undated last">Sort by date</button><button type="button" class="undo-btn" data-undo="comms" disabled aria-label="Undo">Undo</button></span>
+        </div>
+        <p class="hint">Emails, briefings, demos, sessions and sign-offs. Click a status to move it to the next one.</p>
+        <div class="dlv-rows" id="comm-grid"></div>
+      </section>
+    </div>
+
+    <!-- SCHEDULE: the major milestones, then the editor for them. -->
+    <div class="page" data-page="schedule">
+      <section class="card result" id="sec-timeline" hidden>
+        <div class="panel-head">
+          <h2>Milestones</h2>
+          <button type="button" class="link-btn" id="replay-timeline">Replay</button>
+        </div>
+        <p class="hint">The major milestones for this project, in date order.</p>
+        <div class="timeline-wrap">
+          <ol class="timeline" id="timeline"></ol>
+        </div>
+      </section>
+
+      <section class="card result ms-edit-card" id="sec-ms-edit" hidden>
+        <div class="panel-head">
+          <div class="ms-head-left"><h2>Edit milestones</h2><button type="button" class="ms-save-btn" id="ms-save" disabled>Save and update timeline</button></div>
+          <span class="head-actions"><span class="items-count" id="ms-count"></span><button type="button" class="undo-btn" data-undo="milestones" disabled aria-label="Undo">Undo</button></span>
+        </div>
+        <div class="ms-included" id="ms-included">
+          <button type="button" class="ms-included-toggle" id="ms-included-toggle" aria-expanded="false" aria-controls="ms-included-list"><span id="ms-included-label">Included</span></button>
+          <ul class="items ms-list" id="ms-included-list"></ul>
+        </div>
+        <ul class="items ms-list" id="ms-new-list"></ul>
+        <button type="button" class="add-ms" id="add-milestone"><span aria-hidden="true">+</span> Add milestone</button>
+      </section>
+
+    </div>
+
+    <!-- METRICS -->
+    <div class="page" data-page="metrics">
+      <section class="card result dlv-card" id="sec-measures" hidden>
+        <div class="panel-head">
+          <h2>What to measure</h2>
+          <span class="head-actions"><span class="items-count" id="measure-count"></span><button type="button" class="sort-btn" data-sort="measures" data-by="status" title="Put the rows in status order: Blocked, Not started, In progress, Completed">Sort by status</button><button type="button" class="sort-btn sort-date" data-sort="measures" data-by="date" title="Put the rows in target date order, soonest first; undated last">Sort by date</button><button type="button" class="undo-btn" data-undo="measures" disabled aria-label="Undo">Undo</button></span>
+        </div>
+        <p class="hint">Tracking metrics are watched along the way; Outcome metrics say whether it worked. Click a status to move it to the next one.</p>
+        <div class="dlv-rows is-metrics" id="measure-grid"></div>
+      </section>
+
+    </div>
+
+  </main>
+
+  <aside class="rail" id="rail">
+
+    <div id="error" class="error" hidden></div>
+
+    <section class="card" id="input-panel">
+      <div class="panel-head">
+        <h2 id="input-heading">Input</h2>
+        <span class="head-actions"><button type="button" class="link-btn" id="toggle-notes" hidden>Edit</button><button type="button" class="undo-btn" data-undo="notes" disabled aria-label="Undo">Undo</button></span>
+      </div>
+      <p class="hint" id="input-hint">Paste in whatever you&rsquo;ve got: bullets, scratch notes, run-on sentences, half-formed is all fine. Get back a delivery read and an organized dashboard, covering who to win over, in what order, a timeline, and metrics to monitor in the near and long term.</p>
+      <p class="notes-echo" id="notes-echo" hidden></p>
+      <div class="input-body" id="input-body">
+        <textarea id="notes" spellcheck="false" rows="10"></textarea>
+        <div class="actions">
+          <button type="button" class="primary" id="run">Evaluate</button>
+          <span class="status" id="status" role="status" aria-live="polite"></span>
+        </div>
+        <div class="meter" id="meter" aria-hidden="true"></div>
+      </div>
+    </section>
+
+    <!-- Hidden until the notes are read and gaps are actually found. Sits right
+         under the notes it is asking about; everything below shifts down. -->
+    <section class="card questions-panel" id="questions-panel" hidden>
+      <div class="panel-head">
+        <h2>Gathering additional context&hellip;</h2>
+        <span class="q-count" id="q-count"></span>
+      </div>
+      <div class="q-progress" id="q-progress" aria-hidden="true"></div>
+      <div id="questions" aria-live="polite"></div>
+      <div class="q-nav">
+        <button type="button" class="link-btn" id="q-back" hidden>&larr; Back</button>
+        <button type="button" class="link-btn" id="q-skip">Skip this one</button>
+        <button type="button" class="link-btn" id="q-skip-all">Skip the rest</button>
+      </div>
+    </section>
+
+    <!-- One card for the other ways in: the worked example (each click opens a
+         fresh copy) and, once there are any, saved projects to pick up. The
+         switcher lives in the sidebar, which is hidden before a run; without
+         this list, saved work is unreachable from a browser with no memory of it. -->
+    <section class="card start-card" id="example-card">
+      <div class="example-row">
+        <p class="example-title">No notes to hand? Open the example.</p>
+        <button type="button" class="example-btn" id="open-example">Open the example</button>
+      </div>
+      <div class="resume-block" id="resume" hidden>
+        <p class="rail-label">Or pick up where you left off</p>
+        <div id="resume-list"></div>
+      </div>
+    </section>
+
+
+    <!-- The only thing on the right: notes from the developer. Read only in the
+         app; edit developer-notes.md in the project folder to change them. -->
+    <section class="card devnotes-card is-open" id="devnotes">
+      <div class="panel-head"><h2>Developer&rsquo;s notes</h2><button type="button" class="devnotes-toggle" id="devnotes-toggle" aria-expanded="true" aria-controls="devnotes-body" aria-label="Hide developer's notes"></button></div>
+      <div class="devnotes-body" id="devnotes-body"><p class="hint">No notes yet.</p></div>
+    </section>
+
+  </aside>
+
+</div>
+
+<script src="app.js"></script>
+<script src="backdrop.js"></script>
+</body>
+</html>

@@ -1,0 +1,10 @@
+# Kept out of the deployment: local data, tests, and old material.
+.env
+projects/
+people.json
+demo-projects/
+demo-people.json
+previous-version/
+Design direction/
+tests/
+CLAUDE.md
