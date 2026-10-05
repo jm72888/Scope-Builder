@@ -9,3 +9,8 @@ tests/node_modules/
 previous-version/
 Design direction/
 CLAUDE.md
+.vercel
+.env*
+.agents/
+.claude/
+skills-lock.json

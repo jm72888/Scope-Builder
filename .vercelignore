@@ -8,3 +8,7 @@ previous-version/
 Design direction/
 tests/
 CLAUDE.md
+.agents/
+.claude/
+skills-lock.json
+.env.local
