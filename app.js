@@ -1682,7 +1682,7 @@ async function openExample() {
 // Projects an earlier version saved as files on this machine are offered once
 // by a local server started with IMPORT_LEGACY=1; the public site has none.
 async function importLegacy() {
-  if (storeGet(STORE + 'imported')) return;
+  if (storeGet(STORE + 'imported') || !/^(localhost|127\.0\.0\.1)$/.test(location.hostname)) return;
   try {
     const res = await fetch('/api/legacy', { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' });
     if (!res.ok) return;
