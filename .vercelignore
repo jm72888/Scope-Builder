@@ -12,3 +12,5 @@ CLAUDE.md
 .claude/
 skills-lock.json
 .env.local
+# The local server; on Vercel the page is static and api/ holds the functions.
+server.js
